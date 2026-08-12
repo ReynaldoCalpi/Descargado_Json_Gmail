@@ -8,11 +8,11 @@ st.set_page_config(page_title="Extractor de JSON Gmail", page_icon="📥")
 st.title("Extractor de JSON desde Gmail")
 st.write("Ingresa tus datos de acceso para conectar con tu cuenta de correo.")
 
-# Campos en la interfaz para que pongas tus datos de forma segura
+# Campos en la interfaz para ingresar los datos de forma segura
 with st.sidebar:
     st.header("Configuración")
-    EMAIL = st.text_input("reynaestela.escobar.m@gmail.com")
-    PASSWORD = st.text_input("Contraseña de Aplicación", type="xhpyyabsdygialf")
+    EMAIL = st.text_input("Correo de Gmail")
+    PASSWORD = st.text_input("Contraseña de Aplicación", type="password")
     st.info("Usa una contraseña de aplicación de 16 caracteres de Google, no tu clave normal.")
 
 col1, col2 = st.columns(2)
@@ -22,10 +22,7 @@ with col2:
     end_date = st.date_input("Fecha Fin", datetime.date.today())
 
 def conectar_y_buscar(email_user, email_pass, fecha_inicio, fecha_fin):
-    # Conexión al servidor IMAP de Gmail
     mail = imaplib.IMAP4_SSL("imap.gmail.com")
-    
-    # Codificar la contraseña en utf-8 para evitar errores de caracteres especiales
     mail.login(email_user, email_pass.strip())
     mail.select("inbox")
 
