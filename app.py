@@ -2,18 +2,20 @@ import streamlit as st
 import imaplib
 import email
 import datetime
+import io
+import zipfile
 
 st.set_page_config(page_title="Extractor de JSON Gmail", page_icon="📥")
 
 st.title("Extractor de JSON desde Gmail")
-st.write("Ingresa tus datos de acceso para conectar con tu cuenta de correo.")
+st.write("Ingresa tus datos de acceso para conectar con tu cuenta de correo y descargar todos los archivos en un solo ZIP.")
 
-# Campos en la interfaz para ingresar los datos de forma segura
+# Campos en la barra lateral
 with st.sidebar:
     st.header("Configuración")
     EMAIL = st.text_input("Correo de Gmail")
     PASSWORD = st.text_input("Contraseña de Aplicación", type="password")
-    st.info("Usa una contraseña de aplicación de 16 caracteres de Google, no tu clave normal.")
+    st.info("Usa una contraseña de aplicación de 16 caracteres de Google.")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -48,23 +50,32 @@ def conectar_y_buscar(email_user, email_pass, fecha_inicio, fecha_fin):
     mail.logout()
     return archivos
 
-if st.button("Buscar y Descargar JSON"):
+if st.button("Buscar y Descargar Todos en ZIP"):
     if not EMAIL or not PASSWORD:
         st.error("Por favor, ingresa tu correo y tu contraseña de aplicación en la barra lateral.")
     else:
         try:
-            with st.spinner("Conectando con Gmail y buscando archivos..."):
+            with st.spinner("Conectando con Gmail, buscando y empaquetando archivos..."):
                 resultados = conectar_y_buscar(EMAIL, PASSWORD, start_date, end_date)
             
             if resultados:
-                st.success(f"¡Se encontraron {len(resultados)} archivos JSON!")
-                for nombre, contenido in resultados:
-                    st.download_button(
-                        label=f"📥 Descargar {nombre}",
-                        data=contenido,
-                        file_name=nombre,
-                        mime="application/json"
-                    )
+                # Crear un archivo ZIP en memoria RAM
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    for nombre, contenido in resultados:
+                        zip_file.writestr(nombre, contenido)
+                
+                zip_buffer.seek(0)
+                
+                st.success(f"¡Se empaquetaron {len(resultados)} archivos JSON exitosamente!")
+                
+                # Botón único para descargar el ZIP completo
+                st.download_button(
+                    label="📦 Descargar Todos los JSON (ZIP)",
+                    data=zip_buffer,
+                    file_name=f"documentos_json_{datetime.date.today()}.zip",
+                    mime="application/zip"
+                )
             else:
                 st.warning("No se encontraron archivos JSON adjuntos en ese rango de fechas.")
         except Exception as e:
