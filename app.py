@@ -1,27 +1,37 @@
 import streamlit as st
 import imaplib
 import email
-from email.header import decode_header
 import datetime
 
-# Título y configuración
+st.set_page_config(page_title="Extractor de JSON Gmail", page_icon="📥")
+
 st.title("Extractor de JSON desde Gmail")
+st.write("Ingresa tus datos de acceso para conectar con tu cuenta de correo.")
 
-# Configuración de credenciales (considera usar st.secrets para mayor seguridad)
-EMAIL = "tu_correo@gmail.com"
-PASSWORD = "tu_contraseña_de_aplicacion" # Mantén esto seguro
+# Campos en la interfaz para que pongas tus datos de forma segura
+with st.sidebar:
+    st.header("Configuración")
+    EMAIL = st.text_input("reynaestela.escobar.m@gmail.com")
+    PASSWORD = st.text_input("Contraseña de Aplicación", type="xhpyyabsdygialf")
+    st.info("Usa una contraseña de aplicación de 16 caracteres de Google, no tu clave normal.")
 
-def conectar_y_buscar(fecha_inicio, fecha_fin):
-    # Conexión al servidor IMAP
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("Fecha Inicio", datetime.date.today() - datetime.timedelta(days=30))
+with col2:
+    end_date = st.date_input("Fecha Fin", datetime.date.today())
+
+def conectar_y_buscar(email_user, email_pass, fecha_inicio, fecha_fin):
+    # Conexión al servidor IMAP de Gmail
     mail = imaplib.IMAP4_SSL("imap.gmail.com")
-    mail.login(EMAIL, PASSWORD)
+    
+    # Codificar la contraseña en utf-8 para evitar errores de caracteres especiales
+    mail.login(email_user, email_pass.strip())
     mail.select("inbox")
 
-    # Formateo de fechas para el criterio IMAP (DD-Mon-YYYY)
     f_ini = fecha_inicio.strftime("%d-%b-%Y")
     f_fin = fecha_fin.strftime("%d-%b-%Y")
     
-    # Criterio de búsqueda
     criterio = f'(SINCE {f_ini} BEFORE {f_fin})'
     _, data = mail.search(None, criterio)
     
@@ -36,26 +46,29 @@ def conectar_y_buscar(fecha_inicio, fecha_fin):
                     if part.get('Content-Disposition') is None: continue
                     filename = part.get_filename()
                     if filename and filename.endswith('.json'):
-                        # Guardar o procesar el archivo
                         content = part.get_payload(decode=True)
                         archivos.append((filename, content))
     mail.logout()
     return archivos
 
-# Interfaz en Streamlit
-col1, col2 = st.columns(2)
-with col1:
-    start_date = st.date_input("Fecha Inicio", datetime.date.today() - datetime.timedelta(days=30))
-with col2:
-    end_date = st.date_input("Fecha Fin", datetime.date.today())
-
 if st.button("Buscar y Descargar JSON"):
-    try:
-        resultados = conectar_y_buscar(start_date, end_date)
-        if resultados:
-            for nombre, contenido in resultados:
-                st.download_button(f"Descargar {nombre}", contenido, nombre, "application/json")
-        else:
-            st.warning("No se encontraron archivos JSON en ese rango.")
-    except Exception as e:
-        st.error(f"Error: {e}. Verifica tu contraseña de aplicación.")
+    if not EMAIL or not PASSWORD:
+        st.error("Por favor, ingresa tu correo y tu contraseña de aplicación en la barra lateral.")
+    else:
+        try:
+            with st.spinner("Conectando con Gmail y buscando archivos..."):
+                resultados = conectar_y_buscar(EMAIL, PASSWORD, start_date, end_date)
+            
+            if resultados:
+                st.success(f"¡Se encontraron {len(resultados)} archivos JSON!")
+                for nombre, contenido in resultados:
+                    st.download_button(
+                        label=f"📥 Descargar {nombre}",
+                        data=contenido,
+                        file_name=nombre,
+                        mime="application/json"
+                    )
+            else:
+                st.warning("No se encontraron archivos JSON adjuntos en ese rango de fechas.")
+        except Exception as e:
+            st.error(f"Error de autenticación o conexión: {e}. Asegúrate de usar una Contraseña de Aplicación válida.")
